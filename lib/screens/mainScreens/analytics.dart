@@ -259,7 +259,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Week ${value.toInt()}',
+                'Wk ${value.toInt()}',
                 style: GoogleFonts.poppins(
                   color: isDarkMode ? Colors.white70 : Colors.black54,
                   fontSize: 12,
@@ -288,7 +288,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Month ${value.toInt()}',
+                'Mnt ${value.toInt()}',
                 style: GoogleFonts.poppins(
                   color: isDarkMode ? Colors.white70 : Colors.black54,
                   fontSize: 12,
