@@ -205,9 +205,9 @@ class HabitProvider with ChangeNotifier {
 
   // SECTION: Completion Data Getter
   Future<List<FlSpot>> getCompletionData() async {
-    final List<double> values = await _firebaseService.getCompletionRate(_selectedTimeframe);
-    double index = 0;
-    List<FlSpot> spots = values.map((value) => FlSpot(index++, value)).toList();
+    // final List<double> values = await _firebaseService.getCompletionRate(_selectedTimeframe);
+    // double index = 0;
+    // List<FlSpot> spots = values.map((value) => FlSpot(index++, value)).toList();
     return [FlSpot(0, 0),FlSpot(1, 10),FlSpot(2, 20),FlSpot(3, 30),FlSpot(4, 40),FlSpot(5, 50),FlSpot(6, 60),FlSpot(10, 10)];
   }
 
