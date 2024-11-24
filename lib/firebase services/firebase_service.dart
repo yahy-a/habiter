@@ -591,7 +591,7 @@ class FirebaseService {
 
       final now = DateTime.now();
       // Calculate the start of the week (Sunday)
-      final startOfWeek = now.subtract(Duration(days: now.weekday));
+      final startOfWeek = now.subtract(Duration(days: 6));
 
       // Fetch all habits for the current user
       final habitRefs =

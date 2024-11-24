@@ -1,5 +1,6 @@
 import 'dart:ffi';
 
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:habiter_/firebase%20services/firebase_service.dart';
 import 'package:habiter_/models/habit.dart';
@@ -26,6 +27,9 @@ class HabitProvider with ChangeNotifier {
   /// Indicates if required form fields are filled
   bool _isFilled = false;
 
+  // SECTION: Timeframe Properties
+  /// Selected timeframe for analytics
+  String _selectedTimeframe = 'Week';
 
 
   // SECTION: Progress Tracking Properties
@@ -92,6 +96,10 @@ class HabitProvider with ChangeNotifier {
   /// Selected day of month (1-31)
   int get selectedMonthDay => _selectedMonthDay;
 
+  // SECTION: Timeframe Getters
+  /// Selected timeframe for analytics
+  String get selectedTimeframe => _selectedTimeframe;
+
 
 
   // SECTION: Basic Setters
@@ -107,7 +115,11 @@ class HabitProvider with ChangeNotifier {
     notifyListeners();
   }
 
-
+  /// Updates the selected timeframe for analytics
+  void setSelectedTimeframe(String timeframe) {
+    _selectedTimeframe = timeframe;
+    notifyListeners();
+  }
 
   // SECTION: Form Data Setters
   /// Updates selected weekday for weekly habits
@@ -191,7 +203,13 @@ class HabitProvider with ChangeNotifier {
     return _completionCache[cacheKey] ?? false;
   }
 
-
+  // SECTION: Completion Data Getter
+  Future<List<FlSpot>> getCompletionData() async {
+    final List<double> values = await _firebaseService.getCompletionRate(_selectedTimeframe);
+    double index = 0;
+    List<FlSpot> spots = values.map((value) => FlSpot(index++, value)).toList();
+    return [FlSpot(0, 0),FlSpot(1, 10),FlSpot(2, 20),FlSpot(3, 30),FlSpot(4, 40),FlSpot(5, 50),FlSpot(6, 60),FlSpot(10, 10)];
+  }
 
   // SECTION: Habit CRUD Operations
   /// Provides a stream of habits for the selected date
