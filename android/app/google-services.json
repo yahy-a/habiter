@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "915198285101",
+    "project_id": "habiter-app",
+    "storage_bucket": "habiter-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915198285101:android:56b7f4f0c121612cfa6fa4",
+        "android_client_info": {
+          "package_name": "com.example.habiter_"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPHbAFKzrBC_CdkOKZT4xp00f-RS6pPJo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

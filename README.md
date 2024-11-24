@@ -1,2 +1,2 @@
-# habiter
- a complete habit tracking app to better your life
+# Habiter
+ a complete habit tracker to better your life
