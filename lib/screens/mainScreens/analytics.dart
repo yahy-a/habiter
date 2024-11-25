@@ -452,6 +452,7 @@ Widget _buildCompletionChartItem({
                     show: true,
                     drawVerticalLine: false,
                     horizontalInterval: 20,
+                    checkToShowHorizontalLine: (value) => true,
                     getDrawingHorizontalLine: (value) {
                       return FlLine(
                         color: isDarkMode ? Colors.white10 : Colors.black12,
@@ -463,6 +464,7 @@ Widget _buildCompletionChartItem({
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
+                        interval: 20,
                         getTitlesWidget: getTitlesWidgetLeft,
                         reservedSize: 45,
                       ),
@@ -471,6 +473,8 @@ Widget _buildCompletionChartItem({
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: getTitlesWidgetBottom,
+                        interval: 1,
+                        reservedSize: 30,
                       ),
                     ),
                     rightTitles: AxisTitles(
@@ -480,7 +484,18 @@ Widget _buildCompletionChartItem({
                       sideTitles: SideTitles(showTitles: false),
                     ),
                   ),
-                  borderData: FlBorderData(show: false),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border(
+                      top: BorderSide(
+                        color: isDarkMode ? Colors.white24 : Colors.black26,
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  minX: 0,
+                  maxX: spots.length.toDouble() - 1,
+                  minY: 0,
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,

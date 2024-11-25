@@ -208,6 +208,7 @@ class HabitProvider with ChangeNotifier {
     // final List<double> values = await _firebaseService.getCompletionRate(_selectedTimeframe);
     // double index = 0;
     // List<FlSpot> spots = values.map((value) => FlSpot(index++, value)).toList();
+    // return spots;
     return [FlSpot(0, 0),FlSpot(1, 10),FlSpot(2, 20),FlSpot(3, 30),FlSpot(4, 40),FlSpot(5, 50),FlSpot(6, 60)];
   }
 

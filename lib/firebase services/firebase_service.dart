@@ -236,32 +236,20 @@ class FirebaseService {
       }
 
       // Convert dates to UTC to ensure consistent querying
-      final startUtc = DateTime.utc(
-        startDate.year,
-        startDate.month,
-        startDate.day,
-      );
-      final endUtc = DateTime.utc(
-        endDate.year,
-        endDate.month,
-        endDate.day,
-        23, 59, 59  // Include the entire end day
-      );
 
       // Query all entries collections at once using a Collection Group Query
       final QuerySnapshot entriesSnapshot = await FirebaseFirestore.instance
           .collectionGroup('entries')
           .where('userId', isEqualTo: currentUserId)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startUtc))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endUtc))
-          .orderBy('date', descending: true)  // Optional: sort by date
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .orderBy('date', descending: true) // Optional: sort by date
           .get();
 
       // Convert snapshots to HabitEntry objects
       return entriesSnapshot.docs
           .map((doc) => HabitEntry.fromDocument(doc))
           .toList();
-
     } catch (e, stackTrace) {
       print('Error fetching entries for date range: $e');
       print('StackTrace: $stackTrace');
@@ -369,92 +357,152 @@ class FirebaseService {
   /// 6. Updates the overall streak in Firestore.
   ///
   /// @throws Exception if the user is not authenticated or if there's an error fetching entries or updating the streak.
+  // Future<void> updateOverAllStreak() async {
+  //   try {
+  //     print('Starting updateOverAllStreak');
+  //     // Ensure user is authenticated
+  //     if (currentUserId == null) {
+  //       print('Error: User not authenticated');
+  //       throw Exception('User not authenticated');
+  //     }
+
+  //     // Calculate start and end of current day
+  //     final now = DateTime.now();
+  //     final startOfDay = DateTime(now.year, now.month, now.day);
+  //     final endOfDay = startOfDay.add(Duration(days: 1));
+  //     print('Date range: $startOfDay to $endOfDay');
+
+  //     // Fetch all entries for the current user
+  //     final QuerySnapshot entriesSnapshot;
+  //     try {
+  //       print('Fetching entries for user: $currentUserId');
+  //       entriesSnapshot = await FirebaseFirestore.instance
+  //           .collectionGroup('entries')
+  //           .where('userId', isEqualTo: currentUserId)
+  //           .where('date', isLessThanOrEqualTo: endOfDay)
+  //           .orderBy('date', descending: true)
+  //           .get();
+  //       print('Fetched ${entriesSnapshot.docs.length} entries');
+  //     } catch (e) {
+  //       print('Error fetching entries: $e');
+  //       throw Exception('Failed to fetch entries: $e');
+  //     }
+
+  //     // If no entries found, exit early
+  //     if (entriesSnapshot.docs.isEmpty) {
+  //       print('No entries found, exiting early');
+  //       return;
+  //     }
+
+  //     DateTime lastBreakDay = endOfDay;
+  //     bool foundIncomplete = false;
+
+  //     // Iterate through entries to find the last break day
+  //     print('Iterating through entries to find last break day');
+  //     for (var entry in entriesSnapshot.docs) {
+  //       final entryData = entry.data() as Map<String, dynamic>;
+  //       final entryDate = (entryData['date'] as Timestamp).toDate();
+  //       print('Checking entry: date=${entryDate}, completed=${entryData['isCompleted']}');
+
+  //       // If an incomplete entry is found, update lastBreakDay
+  //       if (entryData['isCompleted'] == false) {
+  //         foundIncomplete = true;
+  //         if (entryDate.isAfter(lastBreakDay)) {
+  //           lastBreakDay =
+  //               DateTime(entryDate.year, entryDate.month, entryDate.day);
+  //           print('Updated lastBreakDay to $lastBreakDay');
+  //         }
+  //       }
+  //     }
+
+  //     // Handle case where all entries are complete
+  //     if (!foundIncomplete && entriesSnapshot.docs.isNotEmpty) {
+  //       print('All entries complete, checking oldest entry');
+  //       final oldestEntry = entriesSnapshot.docs.last;
+  //       final oldestEntryData = oldestEntry.data() as Map<String, dynamic>;
+  //       final oldestDate = (oldestEntryData['date'] as Timestamp).toDate();
+
+  //       // Update lastBreakDay to the oldest entry date if it's earlier
+  //       if (oldestDate.isBefore(lastBreakDay)) {
+  //         lastBreakDay =
+  //             DateTime(oldestDate.year, oldestDate.month, oldestDate.day);
+  //         print('Updated lastBreakDay to oldest entry date: $lastBreakDay');
+  //       }
+  //     }
+  //     // Calculate the overall streak
+  //     final daysSinceLastBreak = endOfDay.difference(lastBreakDay).inDays;
+  //     print('Calculated streak: $daysSinceLastBreak days');
+  //     try {
+  //       // Update the overall streak in Firestore
+  //       await _overallStreaks
+  //           .doc(currentUserId)
+  //           .set({'overallStreak': daysSinceLastBreak});
+  //       print('FirebaseService: Overall streak updated to $daysSinceLastBreak');
+  //     } catch (e) {
+  //       print('Error updating overall streak: $e');
+  //       throw Exception('Failed to update overall streak: $e');
+  //     }
+  //   } catch (e) {
+  //     // Log any errors that occur during the process
+  //     print('Error calculating overall streak: $e');
+  //     // Optionally, you can rethrow the exception here if you want it to propagate
+  //     // throw e;
+  //   }
+  // }
+
   Future<void> updateOverAllStreak() async {
     try {
-      // Ensure user is authenticated
-      if (currentUserId == null) {
-        throw Exception('User not authenticated');
-      }
+        final now = DateTime.now();
+        final startOfDay = DateTime(now.year, now.month, now.day);
+        final endOfDay = startOfDay.add(Duration(days: 1));
 
-      // Calculate start and end of current day
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-      final endOfDay = startOfDay.add(Duration(days: 1));
-
-      // Fetch all entries for the current user
-      final QuerySnapshot entriesSnapshot;
-      try {
-        entriesSnapshot = await FirebaseFirestore.instance
-            .collectionGroup('entries')
-            .where('userId', isEqualTo: currentUserId)
-            .where('date', isLessThanOrEqualTo: endOfDay)
-            .orderBy('date', descending: true)
-            .get();
-      } catch (e) {
-        throw Exception('Failed to fetch entries: $e');
-      }
-
-      // If no entries found, exit early
-      if (entriesSnapshot.docs.isEmpty) return;
-
-      DateTime lastBreakDay = endOfDay;
-      bool foundIncomplete = false;
-
-      // Iterate through entries to find the last break day
-      if (entriesSnapshot.docs.isNotEmpty) {
-        for (var entry in entriesSnapshot.docs) {
-          final entryData = entry.data() as Map<String, dynamic>;
-          // Validate entry data
-          if (!entryData.containsKey('date') || !entryData.containsKey('isCompleted')) {
-            print('Warning: Entry ${entry.id} has invalid data');
-            continue;
-          }
-          final entryDate = (entryData['date'] as Timestamp).toDate();
-
-          // If an incomplete entry is found, update lastBreakDay
-          if (entryData['isCompleted'] == false) {
-            foundIncomplete = true;
-            if (entryDate.isAfter(lastBreakDay)) {
-              lastBreakDay =
-                  DateTime(entryDate.year, entryDate.month, entryDate.day);
+        // First check if ALL of today's habits are completed
+        final todaysEntries = await getEntriesForDateRange(
+            startDate: startOfDay, endDate: endOfDay);
+        
+        // If any of today's habits are incomplete, streak is 0
+        for (var entry in todaysEntries) {
+            if (!entry.isCompleted) {
+                await _overallStreaks.doc(currentUserId).set({'overallStreak': 0});
+                return;
             }
-            break;
-          }
         }
 
-        // Handle case where all entries are complete
-        if (!foundIncomplete && entriesSnapshot.docs.isNotEmpty) {
-          final oldestEntry = entriesSnapshot.docs.last;
-          final oldestEntryData = oldestEntry.data() as Map<String, dynamic>;
-          if (!oldestEntryData.containsKey('date')) {
-            throw Exception('Oldest entry has invalid data');
-          }
-          final oldestDate = (oldestEntryData['date'] as Timestamp).toDate();
+        // If we get here, all of today's habits are complete
+        // Now check previous days until we find an incomplete day
+        int streak = 1; // Start at 1 since today is complete
+        DateTime checkDate = startOfDay;
 
-          // Update lastBreakDay to the oldest entry date if it's earlier
-          if (oldestDate.isBefore(lastBreakDay)) {
-            lastBreakDay =
-                DateTime(oldestDate.year, oldestDate.month, oldestDate.day);
-          }
+        while (true) {
+            checkDate = checkDate.subtract(Duration(days: 1));
+            final dayEntries = await getEntriesForDateRange(
+                startDate: checkDate,
+                endDate: checkDate.add(Duration(days: 1))
+            );
+
+            // If no entries for this day, break
+            if (dayEntries.isEmpty) break;
+
+            // Check if ALL habits for this day were completed
+            bool allCompleted = true;
+            for (var entry in dayEntries) {
+                if (!entry.isCompleted) {
+                    allCompleted = false;
+                    break;
+                }
+            }
+
+            if (!allCompleted) break;
+            streak++;
         }
-      }
-      // Calculate the overall streak
-      final daysSinceLastBreak = endOfDay.difference(lastBreakDay).inDays;
-      try {
-        // Update the overall streak in Firestore
-        await _overallStreaks
-            .doc(currentUserId)
-            .set({'overallStreak': daysSinceLastBreak});
-      } catch (e) {
-        throw Exception('Failed to update overall streak: $e');
-      }
+
+        // Update the streak
+        await _overallStreaks.doc(currentUserId).set({'overallStreak': streak});
     } catch (e) {
-      // Log any errors that occur during the process
-      print('Error calculating overall streak: $e');
-      // Optionally, you can rethrow the exception here if you want it to propagate
-      // throw e;
+        print('Error calculating overall streak: $e');
+        rethrow;
     }
-  }
+}
 
   // SECTION: Best Streak Management
   /// Gets the best overall streak achieved
@@ -613,10 +661,10 @@ class FirebaseService {
         final dayEnd = dayStart.add(Duration(days: 1));
 
         int totalEntries = 0;
-        int completedEntries = 0  ;
+        int completedEntries = 0;
 
-        final listOfEntries = await getEntriesForDateRange(
-            startDate: dayStart, endDate: dayEnd);
+        final listOfEntries =
+            await getEntriesForDateRange(startDate: dayStart, endDate: dayEnd);
 
         for (var entry in listOfEntries) {
           totalEntries++;
@@ -708,8 +756,9 @@ class FirebaseService {
               completedEntries++;
             }
           }
-          completionRate[4] =
-              totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
+          completionRate[4] = totalEntries > 0
+              ? (completedEntries / totalEntries) * 100
+              : 100.0;
         }
 
         // Calculate the completion rate for the current week
@@ -825,7 +874,7 @@ class FirebaseService {
       // Fetch all habits for the current user
       final habitRefs =
           await _habits.where('userId', isEqualTo: currentUserId).get();
-      
+
       // If no habits exist, return the array of zeros
       if (habitRefs.docs.isEmpty) return completionRate;
 
@@ -848,7 +897,7 @@ class FirebaseService {
             completedEntries++;
           }
         }
-        
+
         // Calculate completion rate for the month
         completionRate[i] =
             totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
