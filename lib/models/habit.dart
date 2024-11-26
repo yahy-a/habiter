@@ -82,9 +82,9 @@ class Habit {
 
   bool isCompletedForDate(DateTime date) {
     final dateKey = DateTime(date.year, date.month, date.day).toString();
-    print('Checking completion for date: $dateKey');
-    print('Available entries: ${entries.length}');
-    print('Entry keys: ${entries.keys.join(', ')}');
+    // print('Checking completion for date: $dateKey');
+    // print('Available entries: ${entries.length}');
+    // print('Entry keys: ${entries.keys.join(', ')}');
     
     for (var entry in entries.values) {
       final entryDate = DateTime(
@@ -93,13 +93,13 @@ class Habit {
         entry.date.day,
       ).toString();
       
-      print('Comparing entry date: $entryDate with date: $dateKey');
+      // print('Comparing entry date: $entryDate with date: $dateKey');
       if (entryDate == dateKey) {
-        print('Found matching entry, completed: ${entry.isCompleted}');
+        // print('Found matching entry, completed: ${entry.isCompleted}');
         return entry.isCompleted;
       }
     }
-    print('No matching entry found');
+    // print('No matching entry found');
     return false;
   }
 }

@@ -185,7 +185,7 @@ class HabitProvider with ChangeNotifier {
   }
 
   /// Internal method to populate the completion cache
-  void _initializeCache(List<Habit> habits) {
+  Future<void> _initializeCache(List<Habit> habits) async {
     _completionCache.clear();
     for (var habit in habits) {
       final dateKey =
@@ -194,6 +194,8 @@ class HabitProvider with ChangeNotifier {
       final cacheKey = '${habit.id}_$dateKey';
       _completionCache[cacheKey] = habit.isCompletedForDate(_selectedDate);
     }
+    await _firebaseService.updateOverAllStreak();
+    await _firebaseService.updateOverallBestStreak();
   }
 
   /// Retrieves completion status for a specific habit
@@ -255,6 +257,8 @@ class HabitProvider with ChangeNotifier {
   /// Removes a habit from the database
   Future<void> deleteHabit(String habitId) async {
     await _firebaseService.deleteHabit(habitId);
+    await _firebaseService.updateOverAllStreak();
+    await _firebaseService.updateOverallBestStreak();
     notifyListeners();
   }
 
