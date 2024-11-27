@@ -155,12 +155,13 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           margin: EdgeInsets.symmetric(vertical: 8),
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: ['Week', 'Month', '6 Months', 'Year'].map((timeframe) {
+            shrinkWrap: true,
+            children: ['Week', 'Month', '6 Months'].map((timeframe) {
               bool isSelected = selectedTimeframe == timeframe;
               return GestureDetector(
                 onTap: () => habitProvider.setSelectedTimeframe(timeframe),
                 child: Container(
-                  margin: EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                  margin: EdgeInsets.symmetric(horizontal: 15, vertical: 5),
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -222,15 +223,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                [
-                  'Mon',
-                  'Tue',
-                  'Wed',
-                  'Thu',
-                  'Fri',
-                  'Sat',
-                  'Sun'
-                ][value.toInt()],
+                'Day\n${value.toInt() + 1}',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   color: isDarkMode ? Colors.white70 : Colors.black54,
                   fontSize: 12,
@@ -259,78 +253,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             return Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                'Wk ${value.toInt()}',
-                style: GoogleFonts.poppins(
-                  color: isDarkMode ? Colors.white70 : Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-            );
-          },
-          getTitlesWidgetLeft: (value, meta) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '${value.toInt()}%',
-                style: GoogleFonts.poppins(
-                  color: isDarkMode ? Colors.white70 : Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-            );
-          },
-          spots: spots,
-        );
-      case '6 Months':
-        List<FlSpot> spots = await habitProvider.getCompletionData();
-        return _buildCompletionChartItem(
-          getTitlesWidgetBottom: (value, meta) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                'Mnt ${value.toInt()}',
-                style: GoogleFonts.poppins(
-                  color: isDarkMode ? Colors.white70 : Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-            );
-          },
-          getTitlesWidgetLeft: (value, meta) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text(
-                '${value.toInt()}%',
-                style: GoogleFonts.poppins(
-                  color: isDarkMode ? Colors.white70 : Colors.black54,
-                  fontSize: 12,
-                ),
-              ),
-            );
-          },
-          spots: spots,
-        );
-      case 'Year':
-        List<FlSpot> spots = await habitProvider.getCompletionData();
-        return _buildCompletionChartItem(
-          getTitlesWidgetBottom: (value, meta) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                [
-                  'Jan',
-                  'Feb',
-                  'Mar',
-                  'Apr',
-                  'May',
-                  'Jun',
-                  'Jul',
-                  'Aug',
-                  'Sep',
-                  'Oct',
-                  'Nov',
-                  'Dec'
-                ][value.toInt()],
+                'Wk ${value.toInt() + 1}',
                 style: GoogleFonts.poppins(
                   color: isDarkMode ? Colors.white70 : Colors.black54,
                   fontSize: 12,
@@ -474,7 +397,7 @@ Widget _buildCompletionChartItem({
                         showTitles: true,
                         getTitlesWidget: getTitlesWidgetBottom,
                         interval: 1,
-                        reservedSize: 30,
+                        reservedSize: 45,
                       ),
                     ),
                     rightTitles: AxisTitles(
@@ -496,6 +419,7 @@ Widget _buildCompletionChartItem({
                   minX: 0,
                   maxX: spots.length.toDouble() - 1,
                   minY: 0,
+                  maxY: 100,
                   lineBarsData: [
                     LineChartBarData(
                       spots: spots,

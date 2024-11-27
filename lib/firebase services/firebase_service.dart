@@ -562,34 +562,76 @@ class FirebaseService {
 
   // SECTION: Analytics Methods
   // completion rate for selected timeframe(Main method)
+  /// Updates the completion rate for a selected timeframe
+
+  
+  Future<void> updateAllCompletionRate() async {
+    await updateWeeklyCompletionRate();
+    await updateMonthlyCompletionRate();
+    await updateSixMonthCompletionRate();
+  }
+  // getters for completion rate
+  /// Gets the completion rate for a selected timeframe
   Future<List<double>> getCompletionRate(String timeframe) async {
-    List<double> completionRate = [];
     switch (timeframe) {
       case 'Week':
-        completionRate = await getWeeklyCompletionRate();
-        break;
+        return await getWeeklyCompletionRate();
       case 'Month':
-        completionRate = await getMonthlyCompletionRate();
-        break;
+        return await getMonthlyCompletionRate();
       case '6 Months':
-        completionRate = await getSixMonthCompletionRate();
-        break;
-      case 'Year':
-        completionRate = await getYearlyCompletionRate();
-        break;
+        return await getSixMonthCompletionRate();
       default:
         print('Invalid timeframe: $timeframe');
         return [];
     }
-    return completionRate;
   }
+
+  Future<List<double>> getWeeklyCompletionRate() async {
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final doc = await _firestore.collection('weeklyCompletionRates').doc(currentUserId).get();
+    if (!doc.exists) {
+      return List.filled(7, 0.0);
+    }
+    
+    return List<double>.from(doc.data()?['rates'] ?? List.filled(7, 0.0));
+  }
+
+  Future<List<double>> getMonthlyCompletionRate() async {
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final doc = await _firestore.collection('monthlyCompletionRates').doc(currentUserId).get();
+    if (!doc.exists) {
+      return List.filled(30, 0.0);
+    }
+
+    return List<double>.from(doc.data()?['rates'] ?? List.filled(30, 0.0));
+  }
+
+  Future<List<double>> getSixMonthCompletionRate() async {
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final doc = await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).get();
+    if (!doc.exists) {
+      return List.filled(180, 0.0);
+    }
+
+    return List<double>.from(doc.data()?['rates'] ?? List.filled(180, 0.0));
+  }
+  
 
   // completion rate for selected timeframe(sub methods)
 
   /// Calculates the weekly completion rate for all habits of the current user.
   /// @return A list of 7 double values representing the completion rate for each day of the week.
   /// Each value is between 0.0 (no habits completed) and 1.0 (all habits completed).
-  Future<List<double>> getWeeklyCompletionRate() async {
+  Future<void> updateWeeklyCompletionRate() async {
     try {
       // Ensure user is authenticated
       if (currentUserId == null) {
@@ -607,9 +649,13 @@ class FirebaseService {
       // Initialize an array to store completion rates for each day of the week
       List<double> completionRates = List.filled(7, 0.0);
 
-      // If no habits exist, return the empty completion rates list
+      // If no habits exist, store the empty completion rates list
       if (habitRefs.docs.isEmpty) {
-        return completionRates;
+        await _firestore.collection('weeklyCompletionRates').doc(currentUserId).set({
+          'rates': completionRates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
       }
 
       // Iterate through each day of the week
@@ -635,14 +681,18 @@ class FirebaseService {
         // Calculate and store the completion rate for the day
         // If there are no entries, the completion rate is 0
         completionRates[i] =
-            totalEntries > 0 ? completedEntries / totalEntries * 100 : 100.0;
+            totalEntries > 0 ? completedEntries / totalEntries * 100 : 0.0;
       }
 
-      return completionRates;
+      // Store the completion rates in Firestore
+      await _firestore.collection('weeklyCompletionRates').doc(currentUserId).set({
+        'rates': completionRates,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       // Log the error and rethrow with a more specific message
-      print('Error getting weekly completion rate: $e');
-      throw Exception('Failed to get weekly completion rate: $e');
+      print('Error updating weekly completion rate: $e');
+      throw Exception('Failed to update weekly completion rate: $e');
     }
   }
 
@@ -654,7 +704,7 @@ class FirebaseService {
   ///
   /// @return A list of 5 double values representing the completion rate for each week.
   /// Each value is between 0.0 (no habits completed) and 100.0 (all habits completed).
-  Future<List<double>> getMonthlyCompletionRate() async {
+  Future<void> updateMonthlyCompletionRate() async {
     try {
       // Verify that the user is authenticated
       if (currentUserId == null) {
@@ -679,8 +729,14 @@ class FirebaseService {
       final habitRefs =
           await _habits.where('userId', isEqualTo: currentUserId).get();
 
-      // If the user has no habits, return the default completion rates
-      if (habitRefs.docs.isEmpty) return completionRate;
+      // If the user has no habits, store the default completion rates
+      if (habitRefs.docs.isEmpty) {
+        await _firestore.collection('monthlyCompletionRates').doc(currentUserId).set({
+          'rates': completionRate,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
+      }
 
       // Iterate through the 30-day period in increments of 7 days to represent each week
       for (int i = 0; i < monthDays; i += 7) {
@@ -705,6 +761,8 @@ class FirebaseService {
           }
         }
         if (i == 28) {
+          totalEntries = 0;
+          completedEntries = 0;
           final startOfLastWeek = endOfWeek;
           final endOfLastWeek = startOfLastWeek.add(Duration(days: 2));
           final listOfEntries = await getEntriesForDateRange(
@@ -717,23 +775,25 @@ class FirebaseService {
           }
           completionRate[4] = totalEntries > 0
               ? (completedEntries / totalEntries) * 100
-              : 100.0;
+              : 0.0;
         }
 
         // Calculate the completion rate for the current week
         // If there are no entries, assume a completion rate of 100%
         completionRate[i ~/ 7] =
-            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
+            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0.0;
       }
 
-      // Return the list of completion rates for each week
-      return completionRate;
+      // Store the completion rates in Firestore
+      await _firestore.collection('monthlyCompletionRates').doc(currentUserId).set({
+        'rates': completionRate,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       // Log the error message for debugging purposes
-      print('Error getting monthly completion rate: $e');
-
-      // Return a default list of completion rates in case of an error
-      return List.filled(5, 0.0);
+      print('Error updating monthly completion rate: $e');
+      // Rethrow the exception to be handled by the caller
+      throw Exception('Failed to update monthly completion rate: $e');
     }
   }
 
@@ -754,7 +814,7 @@ class FirebaseService {
   /// In case of an error, it logs the error and stack trace, and returns an array of zeros.
   ///
   /// @return A Future<List<double>> containing 6 completion rates, one for each month.
-  Future<List<double>> getSixMonthCompletionRate() async {
+  Future<void> updateSixMonthCompletionRate() async {
     try {
       // Ensure user is authenticated
       if (currentUserId == null) {
@@ -774,8 +834,14 @@ class FirebaseService {
       final habitRefs =
           await _habits.where('userId', isEqualTo: currentUserId).get();
 
-      // If no habits exist, return the array of zeros
-      if (habitRefs.docs.isEmpty) return completionRate;
+      // If no habits exist, store the array of zeros
+      if (habitRefs.docs.isEmpty) {
+        await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).set({
+          'rates': completionRate,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
+      }
 
       // Iterate through each month in the six-month period
       for (int i = 0; i < 6; i++) {
@@ -799,22 +865,26 @@ class FirebaseService {
 
         // Calculate completion rate for the month
         completionRate[i] =
-            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
+            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0.0;
       }
 
-      return completionRate;
+      // Store the completion rates in Firestore
+      await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).set({
+        'rates': completionRate,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e, stackTrace) {
       // Log error and stack trace
-      print('Error getting six-month completion rate: $e');
+      print('Error updating six-month completion rate: $e');
       print('StackTrace: $stackTrace');
       // Optionally, you can log the error to an external service here
-      return List.filled(6, 0.0);
+      throw Exception('Failed to update six-month completion rate: $e');
     }
   }
 
   /// Calculates the yearly completion rate for habits over the last 365 days
   /// Returns a list of 12 double values representing monthly completion rates
-  Future<List<double>> getYearlyCompletionRate() async {
+  Future<void> updateYearlyCompletionRate() async {
     try {
       // Ensure user is authenticated
       if (currentUserId == null) {
@@ -834,8 +904,14 @@ class FirebaseService {
       final habitRefs =
           await _habits.where('userId', isEqualTo: currentUserId).get();
 
-      // If no habits exist, return the array of zeros
-      if (habitRefs.docs.isEmpty) return completionRate;
+      // If no habits exist, store the array of zeros
+      if (habitRefs.docs.isEmpty) {
+        await _firestore.collection('yearlyCompletionRates').doc(currentUserId).set({
+          'rates': completionRate,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
+      }
 
       // Iterate through each month in the year
       for (int i = 0; i < 12; i++) {
@@ -862,13 +938,17 @@ class FirebaseService {
             totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
       }
 
-      return completionRate;
+      // Store the completion rates in Firestore
+      await _firestore.collection('yearlyCompletionRates').doc(currentUserId).set({
+        'rates': completionRate,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     } catch (e, stackTrace) {
       // Log error and stack trace
-      print('Error getting yearly completion rate: $e');
+      print('Error updating yearly completion rate: $e');
       print('StackTrace: $stackTrace');
       // Optionally, you can log the error to an external service here
-      return List.filled(12, 0.0);
+      throw Exception('Failed to update yearly completion rate: $e');
     }
   }
 
