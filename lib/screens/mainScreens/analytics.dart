@@ -275,6 +275,35 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           },
           spots: spots,
         );
+      case '6 Months':
+        List<FlSpot> spots = await habitProvider.getCompletionData();
+        return _buildCompletionChartItem(
+          getTitlesWidgetBottom: (value, meta) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'M ${value.toInt() + 1}',
+                style: GoogleFonts.poppins(
+                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                  fontSize: 12,
+                ),
+              ),
+            );
+          },
+          getTitlesWidgetLeft: (value, meta) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text(
+                '${value.toInt()}%',
+                style: GoogleFonts.poppins(
+                  color: isDarkMode ? Colors.white70 : Colors.black54,
+                  fontSize: 12,
+                ),
+              ),
+            );
+          },
+          spots: spots,
+        );
       default:
         return Container(
           height: 400,
@@ -545,25 +574,47 @@ Widget _buildHabitStats() {
   return Consumer<HabitProvider>(
     builder: (context, habitProvider, child) {
       final isDarkMode = Provider.of<PreferencesProvider>(context).isDarkMode;
-      return Container(
-        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            _buildStatCard(
-              'Total Habits',
-              '12',
-              Icons.list_alt_rounded,
-              isDarkMode,
+      return FutureBuilder<Map<String, dynamic>>(
+        future: Future.wait([
+          habitProvider.getOverallCompletionRate(),
+          habitProvider.getNumberOfTotalHabits(),
+        ]).then((values) => {
+          'completionRate': values[0],
+          'totalHabits': values[1],
+        }),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading stats'));
+          }
+
+          final completionRate = snapshot.data?['completionRate'] ?? 0.0;
+          final totalHabits = snapshot.data?['totalHabits'] ?? 0;
+
+          return Container(
+            margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                _buildStatCard(
+                  'Total Habits',
+                  totalHabits.toString(),
+                  Icons.list_alt_rounded,
+                  isDarkMode,
+                ),
+                SizedBox(width: 12),
+                _buildStatCard(
+                  'Completion Rate',
+                  '${completionRate.toStringAsFixed(1)}%',
+                  Icons.show_chart_rounded,
+                  isDarkMode,
+                ),
+              ],
             ),
-            SizedBox(width: 12),
-            _buildStatCard(
-              'Completion Rate',
-              '78%',
-              Icons.show_chart_rounded,
-              isDarkMode,
-            ),
-          ],
-        ),
+          );
+        },
       );
     },
   );

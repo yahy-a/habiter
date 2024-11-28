@@ -206,6 +206,8 @@ class HabitProvider with ChangeNotifier {
   }
 
   // SECTION: Completion Data Getter
+
+  /// Gets the completion rate data for the selected timeframe
   Future<List<FlSpot>> getCompletionData() async {
     final List<double> values = await _firebaseService.getCompletionRate(_selectedTimeframe);
     double index = 0;
@@ -214,7 +216,18 @@ class HabitProvider with ChangeNotifier {
     // return [FlSpot(0, 0),FlSpot(1, 10),FlSpot(2, 20),FlSpot(3, 30),FlSpot(4, 40),FlSpot(5, 50),FlSpot(6, 60)];
   }
 
+  /// Gets the overall completion rate for all habits
+  Future<double> getOverallCompletionRate() async {
+    return await _firebaseService.getOverallCompletionRate();
+  }
+
+  /// Gets the number of total habits for the current user
+  Future<int> getNumberOfTotalHabits() async {
+    return await _firebaseService.getNumberOfTotalHabits();
+  }
+
   // SECTION: Habit CRUD Operations
+
   /// Provides a stream of habits for the selected date
   Stream<List<Habit>> get habitsStream {
     return _firebaseService.getHabitsForDate(_selectedDate).map((habits) {

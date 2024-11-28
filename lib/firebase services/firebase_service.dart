@@ -561,17 +561,13 @@ class FirebaseService {
 
 
   // SECTION: Analytics Methods
-  // completion rate for selected timeframe(Main method)
-  /// Updates the completion rate for a selected timeframe
 
-  
-  Future<void> updateAllCompletionRate() async {
-    await updateWeeklyCompletionRate();
-    await updateMonthlyCompletionRate();
-    await updateSixMonthCompletionRate();
-  }
-  // getters for completion rate
-  /// Gets the completion rate for a selected timeframe
+  // sub-section: Completion Rate Retrieval
+
+  /// Retrieves the completion rate for a specified timeframe
+  /// @param timeframe The timeframe for which to get the completion rate ('Week', 'Month', or '6 Months')
+  /// @return A List<double> containing the completion rates for each day/week/month in the specified timeframe
+  /// @throws Exception if an invalid timeframe is provided
   Future<List<double>> getCompletionRate(String timeframe) async {
     switch (timeframe) {
       case 'Week':
@@ -586,6 +582,9 @@ class FirebaseService {
     }
   }
 
+  /// Retrieves the weekly completion rate for the current user
+  /// @return A List<double> of 7 elements, each representing the completion rate for a day of the week
+  /// @throws Exception if the user is not authenticated
   Future<List<double>> getWeeklyCompletionRate() async {
     if (currentUserId == null) {
       throw Exception('User not authenticated');
@@ -593,12 +592,15 @@ class FirebaseService {
 
     final doc = await _firestore.collection('weeklyCompletionRates').doc(currentUserId).get();
     if (!doc.exists) {
-      return List.filled(7, 0.0);
+      return List.filled(7, 0.0);  // Return a list of zeros if no data exists
     }
     
     return List<double>.from(doc.data()?['rates'] ?? List.filled(7, 0.0));
   }
 
+  /// Retrieves the monthly completion rate for the current user
+  /// @return A List<double> of 30 elements, each representing the completion rate for a day of the month
+  /// @throws Exception if the user is not authenticated
   Future<List<double>> getMonthlyCompletionRate() async {
     if (currentUserId == null) {
       throw Exception('User not authenticated');
@@ -606,12 +608,15 @@ class FirebaseService {
 
     final doc = await _firestore.collection('monthlyCompletionRates').doc(currentUserId).get();
     if (!doc.exists) {
-      return List.filled(30, 0.0);
+      return List.filled(30, 0.0);  // Return a list of zeros if no data exists
     }
 
     return List<double>.from(doc.data()?['rates'] ?? List.filled(30, 0.0));
   }
 
+  /// Retrieves the six-month completion rate for the current user
+  /// @return A List<double> of 180 elements, each representing the completion rate for a day over six months
+  /// @throws Exception if the user is not authenticated
   Future<List<double>> getSixMonthCompletionRate() async {
     if (currentUserId == null) {
       throw Exception('User not authenticated');
@@ -619,37 +624,106 @@ class FirebaseService {
 
     final doc = await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).get();
     if (!doc.exists) {
-      return List.filled(180, 0.0);
+      return List.filled(180, 0.0);  // Return a list of zeros if no data exists
     }
 
     return List<double>.from(doc.data()?['rates'] ?? List.filled(180, 0.0));
   }
-  
 
-  // completion rate for selected timeframe(sub methods)
+  /// Retrieves the overall completion rate for all habits over the past year
+  /// 
+  /// @return A double representing the completion rate as a percentage (0-100)
+  /// @throws Exception if the user is not authenticated
+  Future<double> getOverallCompletionRate() async {
+    try {
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
 
-  /// Calculates the weekly completion rate for all habits of the current user.
-  /// @return A list of 7 double values representing the completion rate for each day of the week.
-  /// Each value is between 0.0 (no habits completed) and 1.0 (all habits completed).
+      final userStatsDoc = await _firestore
+          .collection('userStats')
+          .doc(currentUserId)
+          .get();
+
+      if (!userStatsDoc.exists) {
+        return 0.0;
+      }
+
+      final userData = userStatsDoc.data() as Map<String, dynamic>;
+      return userData['overallCompletionRate'] ?? 0.0;
+    } catch (e) {
+      print('Error getting overall completion rate: $e');
+      throw Exception('Failed to get overall completion rate: $e');
+    }
+  }
+
+  /// Retrieves the total number of habits for the current user
+  /// 
+  /// @return An integer representing the total number of habits
+  /// @throws Exception if the user is not authenticated
+  Future<int> getNumberOfTotalHabits() async {
+    try {
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final userStatsDoc = await _firestore
+          .collection('userStats')
+          .doc(currentUserId)
+          .get();
+
+      if (!userStatsDoc.exists) {
+        return 0;
+      }
+
+      final userData = userStatsDoc.data() as Map<String, dynamic>;
+      return userData['numberOfHabits'] ?? 0;
+    } catch (e) {
+      print('Error getting number of habits: $e');
+      throw Exception('Failed to get number of habits: $e');
+    }
+  }
+
+  // sub-section: Completion Rate Updates
+
+  /// Updates the completion rates for all timeframes (weekly, monthly, and six-month)
+  /// This method should be called whenever habit data is updated to keep analytics current
+  Future<void> updateAllCompletionRate() async {
+    await updateWeeklyCompletionRate();
+    await updateMonthlyCompletionRate();
+    await updateSixMonthCompletionRate();
+    await updateOverallCompletionRate();
+  }
+
+  /// Updates the weekly completion rate for the current user
+  /// 
+  /// This function calculates completion rates for the past 7 days and stores them in Firestore.
+  /// The rates are stored as percentages (0-100) in an array where:
+  /// - index 0 represents 6 days ago
+  /// - index 6 represents today
+  /// 
+  /// The calculation process:
+  /// 1. Verifies user authentication
+  /// 2. Gets all habit entries for each day of the week
+  /// 3. Calculates completion rate as: (completed entries / total entries) * 100
+  /// 4. Stores results in Firestore under 'weeklyCompletionRates' collection
   Future<void> updateWeeklyCompletionRate() async {
     try {
-      // Ensure user is authenticated
       if (currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
       final now = DateTime.now();
-      // Calculate the start of the week (Sunday)
+      // Start from 6 days ago to include today (7 days total)
       final startOfWeek = now.subtract(Duration(days: 6));
 
-      // Fetch all habits for the current user
-      final habitRefs =
-          await _habits.where('userId', isEqualTo: currentUserId).get();
+      // Get all habits for validation
+      final habitRefs = await _habits.where('userId', isEqualTo: currentUserId).get();
 
-      // Initialize an array to store completion rates for each day of the week
+      // Array to store daily completion rates (7 days)
       List<double> completionRates = List.filled(7, 0.0);
 
-      // If no habits exist, store the empty completion rates list
+      // Early return if user has no habits
       if (habitRefs.docs.isEmpty) {
         await _firestore.collection('weeklyCompletionRates').doc(currentUserId).set({
           'rates': completionRates,
@@ -658,60 +732,65 @@ class FirebaseService {
         return;
       }
 
-      // Iterate through each day of the week
+      // Calculate completion rate for each day
       for (int i = 0; i < 7; i++) {
         final date = startOfWeek.add(Duration(days: i));
-        // Define the start and end of the day
+        // Get entries between start and end of the specific day
         final dayStart = DateTime(date.year, date.month, date.day);
         final dayEnd = dayStart.add(Duration(days: 1));
 
         int totalEntries = 0;
         int completedEntries = 0;
 
-        final listOfEntries =
-            await getEntriesForDateRange(startDate: dayStart, endDate: dayEnd);
+        // Get all entries for this day
+        final listOfEntries = await getEntriesForDateRange(
+          startDate: dayStart, 
+          endDate: dayEnd
+        );
 
+        // Count completed vs total entries
         for (var entry in listOfEntries) {
           totalEntries++;
-          if (entry.isCompleted) {
-            completedEntries++;
-          }
+          if (entry.isCompleted) completedEntries++;
         }
 
-        // Calculate and store the completion rate for the day
-        // If there are no entries, the completion rate is 0
-        completionRates[i] =
-            totalEntries > 0 ? completedEntries / totalEntries * 100 : 0.0;
+        // Calculate completion rate as percentage
+        completionRates[i] = totalEntries > 0 
+          ? completedEntries / totalEntries * 100 
+          : 0.0;
       }
 
-      // Store the completion rates in Firestore
+      // Store results in Firestore
       await _firestore.collection('weeklyCompletionRates').doc(currentUserId).set({
         'rates': completionRates,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      // Log the error and rethrow with a more specific message
       print('Error updating weekly completion rate: $e');
       throw Exception('Failed to update weekly completion rate: $e');
     }
   }
 
-  /// Calculates the monthly completion rate for all habits of the current user.
-  ///
-  /// This function divides the last 30 days into 5 weeks and calculates the
-  /// completion rate for each week. The completion rate is the percentage of
-  /// completed entries out of total entries for the user's habits.
-  ///
-  /// @return A list of 5 double values representing the completion rate for each week.
-  /// Each value is between 0.0 (no habits completed) and 100.0 (all habits completed).
+  /// Updates the monthly completion rate for the current user
+  /// 
+  /// This function calculates completion rates for the past 30 days, divided into 5 weeks.
+  /// The rates are stored as percentages (0-100) in an array where:
+  /// - index 0 represents the first week
+  /// - index 4 represents the current week (might be partial)
+  /// 
+  /// The calculation process:
+  /// 1. Verifies user authentication
+  /// 2. Gets all habit entries for the 30-day period
+  /// 3. Divides entries into 5 weekly chunks
+  /// 4. Calculates completion rate for each week
+  /// 5. Stores results in Firestore under 'monthlyCompletionRates' collection
   Future<void> updateMonthlyCompletionRate() async {
     try {
-      // Verify that the user is authenticated
       if (currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get the current date and calculate the start date of the 30-day period
+      // Calculate the 30-day period
       final now = DateTime.now();
       final startOfMonth = now.subtract(Duration(days: 29));
       final exactStartOfMonth = DateTime(
@@ -719,17 +798,13 @@ class FirebaseService {
         startOfMonth.month,
         startOfMonth.day,
       );
+      final endOfMonth = exactStartOfMonth.add(Duration(days: 30));
 
-      final monthDays = 30;
-
-      // Initialize a list to store completion rates for each week (5 weeks total)
+      // Initialize array for 5 weeks of data
       List<double> completionRate = List.filled(5, 0.0);
 
-      // Fetch all habits associated with the current user from the Firestore collection
-      final habitRefs =
-          await _habits.where('userId', isEqualTo: currentUserId).get();
-
-      // If the user has no habits, store the default completion rates
+      // Validate user has habits
+      final habitRefs = await _habits.where('userId', isEqualTo: currentUserId).get();
       if (habitRefs.docs.isEmpty) {
         await _firestore.collection('monthlyCompletionRates').doc(currentUserId).set({
           'rates': completionRate,
@@ -738,103 +813,85 @@ class FirebaseService {
         return;
       }
 
-      // Iterate through the 30-day period in increments of 7 days to represent each week
-      for (int i = 0; i < monthDays; i += 7) {
-        // Calculate the start date of the current week
-        final startOfWeek = exactStartOfMonth.add(Duration(days: i));
-        // Calculate the end date of the current week by adding 7 days
-        DateTime endOfWeek = startOfWeek.add(Duration(days: 7));
+      // Get all entries for the entire period at once
+      final listOfEntries = await getEntriesForDateRange(
+        startDate: exactStartOfMonth, 
+        endDate: endOfMonth
+      );
 
-        // For the last week, adjust the end date to include the remaining 2 days
-
-        // Initialize counters for total and completed entries within the current week
+      // Process each week
+      for (int i = 0; i < 5; i++) {
         int totalEntries = 0;
         int completedEntries = 0;
 
-        final listOfEntries = await getEntriesForDateRange(
-            startDate: startOfWeek, endDate: endOfWeek);
+        // Calculate week boundaries
+        DateTime startOfWeek = exactStartOfMonth.add(Duration(days: i * 7));
+        DateTime endOfWeek = startOfWeek.add(Duration(days: 7));
+        // Adjust last week to end exactly at 30 days
+        if(i == 4) endOfWeek = endOfMonth;
 
-        for (var entry in listOfEntries) {
+        // Filter entries for current week
+        final entriesForWeek = listOfEntries.where(
+          (entry) => entry.date.isAfter(startOfWeek) && entry.date.isBefore(endOfWeek)
+        ).toList();
+
+        // Count completed vs total entries
+        for (var entry in entriesForWeek) {
           totalEntries++;
-          if (entry.isCompleted) {
-            completedEntries++;
-          }
-        }
-        if (i == 28) {
-          totalEntries = 0;
-          completedEntries = 0;
-          final startOfLastWeek = endOfWeek;
-          final endOfLastWeek = startOfLastWeek.add(Duration(days: 2));
-          final listOfEntries = await getEntriesForDateRange(
-              startDate: startOfLastWeek, endDate: endOfLastWeek);
-          for (var entry in listOfEntries) {
-            totalEntries++;
-            if (entry.isCompleted) {
-              completedEntries++;
-            }
-          }
-          completionRate[4] = totalEntries > 0
-              ? (completedEntries / totalEntries) * 100
-              : 0.0;
+          if (entry.isCompleted) completedEntries++;
         }
 
-        // Calculate the completion rate for the current week
-        // If there are no entries, assume a completion rate of 100%
-        completionRate[i ~/ 7] =
-            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0.0;
+        // Calculate completion rate as percentage
+        completionRate[i] = totalEntries > 0 
+          ? completedEntries / totalEntries * 100 
+          : 0.0;
       }
 
-      // Store the completion rates in Firestore
+      // Store results in Firestore
       await _firestore.collection('monthlyCompletionRates').doc(currentUserId).set({
         'rates': completionRate,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      // Log the error message for debugging purposes
       print('Error updating monthly completion rate: $e');
-      // Rethrow the exception to be handled by the caller
       throw Exception('Failed to update monthly completion rate: $e');
     }
   }
 
-  /// Calculates the completion rate for habits over the past six months.
-  ///
-  /// This function performs the following steps:
-  /// 1. Determines the start date for the six-month period.
-  /// 2. Initializes an array to store completion rates for each month.
-  /// 3. Fetches all habits for the current user.
-  /// 4. For each month in the six-month period:
-  ///    a. Calculates the start and end dates for the month.
-  ///    b. Queries all habit entries within the month.
-  ///    c. Counts total entries and completed entries.
-  ///    d. Calculates the completion rate for the month.
-  /// 5. Returns the array of monthly completion rates.
-  ///
-  /// If no habits exist, it returns an array of zeros.
-  /// In case of an error, it logs the error and stack trace, and returns an array of zeros.
-  ///
-  /// @return A Future<List<double>> containing 6 completion rates, one for each month.
+  /// Updates the six-month completion rate for the current user
+  /// 
+  /// This function calculates completion rates for the past 180 days, divided into 6 months.
+  /// The rates are stored as percentages (0-100) in an array where:
+  /// - index 0 represents the earliest month
+  /// - index 5 represents the current month
+  /// 
+  /// The calculation process:
+  /// 1. Verifies user authentication
+  /// 2. Gets all habit entries for the 180-day period
+  /// 3. Divides entries into 6 monthly chunks (30 days each)
+  /// 4. Calculates completion rate for each month
+  /// 5. Stores results in Firestore under 'sixMonthCompletionRates' collection
   Future<void> updateSixMonthCompletionRate() async {
     try {
-      // Ensure user is authenticated
       if (currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get current date and calculate the start of the six-month period
+      // Calculate the 180-day period
       final now = DateTime.now();
       final startOfSixMonths = now.subtract(Duration(days: 179));
       final exactStartOfSixMonths = DateTime(
-          startOfSixMonths.year, startOfSixMonths.month, startOfSixMonths.day);
+        startOfSixMonths.year, 
+        startOfSixMonths.month, 
+        startOfSixMonths.day
+      );
+      final endOfSixMonths = exactStartOfSixMonths.add(Duration(days: 180));
 
-      // Initialize array to store completion rates
+      // Initialize array for 6 months of data
       List<double> completionRate = List.filled(6, 0.0);
 
-      // Fetch all habits for the current user
-      final habitRefs =
-          await _habits.where('userId', isEqualTo: currentUserId).get();
-
-      // If no habits exist, store the array of zeros
+      // Validate user has habits
+      final habitRefs = await _habits.where('userId', isEqualTo: currentUserId).get();
       if (habitRefs.docs.isEmpty) {
         await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).set({
           'rates': completionRate,
@@ -843,114 +900,111 @@ class FirebaseService {
         return;
       }
 
-      // Iterate through each month in the six-month period
+      // Get all entries for the entire period at once
+      final listOfEntries = await getEntriesForDateRange(
+        startDate: exactStartOfSixMonths, 
+        endDate: endOfSixMonths
+      );
+
+      // Process each month (30-day periods)
       for (int i = 0; i < 6; i++) {
-        // Calculate start and end dates for the current month
-        final startOfMonth = exactStartOfSixMonths.add(Duration(days: i * 30));
-        final endOfMonth = startOfMonth.add(Duration(days: 30));
         int totalEntries = 0;
         int completedEntries = 0;
 
-        // Create a list of queries to fetch entries for each habit within the month
-        final listOfEntries = await getEntriesForDateRange(
-            startDate: startOfMonth, endDate: endOfMonth);
+        // Calculate month boundaries
+        DateTime startOfMonth = exactStartOfSixMonths.add(Duration(days: i * 30));
+        DateTime endOfMonth = startOfMonth.add(Duration(days: 30));
 
-        // Count total and completed entries
-        for (var entry in listOfEntries) {
+        // Filter entries for current month
+        final entriesForMonth = listOfEntries.where(
+          (entry) => entry.date.isAfter(startOfMonth) && entry.date.isBefore(endOfMonth)
+        ).toList();
+
+        // Count completed vs total entries
+        for (var entry in entriesForMonth) {
           totalEntries++;
-          if (entry.isCompleted) {
-            completedEntries++;
-          }
+          if (entry.isCompleted) completedEntries++;
         }
 
-        // Calculate completion rate for the month
-        completionRate[i] =
-            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0.0;
+        // Calculate completion rate as percentage
+        completionRate[i] = totalEntries > 0 
+          ? completedEntries / totalEntries * 100 
+          : 0.0;
       }
 
-      // Store the completion rates in Firestore
+      // Store results in Firestore
       await _firestore.collection('sixMonthCompletionRates').doc(currentUserId).set({
         'rates': completionRate,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e, stackTrace) {
-      // Log error and stack trace
       print('Error updating six-month completion rate: $e');
       print('StackTrace: $stackTrace');
-      // Optionally, you can log the error to an external service here
       throw Exception('Failed to update six-month completion rate: $e');
     }
   }
 
-  /// Calculates the yearly completion rate for habits over the last 365 days
-  /// Returns a list of 12 double values representing monthly completion rates
-  Future<void> updateYearlyCompletionRate() async {
+  /// This function calculates the overall completion rate for all habits over the past year (365 days).
+  /// The rate is stored as a percentage (0-100) in Firestore.
+  /// 
+  /// The calculation process:
+  /// 1. Verifies user authentication
+  /// 2. Gets all habit entries for the past year
+  /// 3. Calculates completion rate as: (completed entries / total entries) * 100
+  /// 4. Stores result in Firestore under 'userStats' collection
+  /// 
+  /// Additionally, this function updates the number of habits for the user.
+  /// 
+  /// @throws Exception if the user is not authenticated or if the update fails
+  Future<void> updateOverallCompletionRate() async {
     try {
-      // Ensure user is authenticated
       if (currentUserId == null) {
         throw Exception('User not authenticated');
       }
 
       final now = DateTime.now();
-      final startOfYear = now.subtract(Duration(days: 364));
-      final exactStartOfYear = DateTime(
-        startOfYear.year,
-        startOfYear.month,
-        startOfYear.day,
-      );
-      List<double> completionRate = List.filled(12, 0.0);
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(Duration(days: 1));
+      final firstDate = startOfDay.subtract(Duration(days: 365));
 
-      // Fetch all habits for the current user
-      final habitRefs =
-          await _habits.where('userId', isEqualTo: currentUserId).get();
-
-      // If no habits exist, store the array of zeros
-      if (habitRefs.docs.isEmpty) {
-        await _firestore.collection('yearlyCompletionRates').doc(currentUserId).set({
-          'rates': completionRate,
+      final habits = await _habits.where('userId', isEqualTo: currentUserId).get();
+      if (habits.docs.isEmpty) {
+        await _firestore.collection('userStats').doc(currentUserId).set({
+          'numberOfHabits': 0,
+          'overallCompletionRate': 0.0,
           'updatedAt': FieldValue.serverTimestamp(),
         });
         return;
+      } else {
+        // Update number of habits in userStats
+        await _firestore.collection('userStats').doc(currentUserId).set({
+          'numberOfHabits': habits.docs.length,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
-
-      // Iterate through each month in the year
-      for (int i = 0; i < 12; i++) {
-        // Calculate start and end dates for the current month (30-day period)
-        final startOfMonth = exactStartOfYear.add(Duration(days: i * 30));
-        final endOfMonth = startOfMonth.add(Duration(days: 30));
-        int totalEntries = 0;
-        int completedEntries = 0;
-
-        // Fetch entries for the current month
-        final listOfEntries = await getEntriesForDateRange(
-            startDate: startOfMonth, endDate: endOfMonth);
-
-        // Count total and completed entries
-        for (var entry in listOfEntries) {
-          totalEntries++;
-          if (entry.isCompleted) {
-            completedEntries++;
-          }
-        }
-
-        // Calculate completion rate for the month
-        completionRate[i] =
-            totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 100.0;
+        final entriesList = await getEntriesForDateRange(
+          startDate: firstDate, 
+        endDate: endOfDay
+      );
+      int totalEntries = 0;
+      int completedEntries = 0;
+      for (var entry in entriesList) {
+        totalEntries++;
+        if (entry.isCompleted) completedEntries++;
       }
-
-      // Store the completion rates in Firestore
-      await _firestore.collection('yearlyCompletionRates').doc(currentUserId).set({
-        'rates': completionRate,
+      final overallCompletionRate = totalEntries > 0 
+        ? completedEntries / totalEntries * 100 
+        : 0.0;
+      await _firestore.collection('userStats').doc(currentUserId).set({
+        'overallCompletionRate': overallCompletionRate,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e, stackTrace) {
-      // Log error and stack trace
-      print('Error updating yearly completion rate: $e');
-      print('StackTrace: $stackTrace');
-      // Optionally, you can log the error to an external service here
-      throw Exception('Failed to update yearly completion rate: $e');
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error updating overall completion rate: $e');
+      throw Exception('Failed to update overall completion rate: $e');
     }
   }
+
 
   // SECTION: User Data Management
   /// Clears all data for the current user
