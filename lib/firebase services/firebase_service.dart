@@ -38,6 +38,7 @@ class FirebaseService {
   String? get currentUserId => _auth.currentUser?.uid;
 
   // SECTION: Habit CRUD Operations
+
   /// Creates a new habit with associated entries based on frequency
   /// @param name Name of the habit
   /// @param detail Additional details about the habit
@@ -67,6 +68,7 @@ class FirebaseService {
         'frequency': frequency,
         'bestStreak': 0,
         'currentStreak': 0,
+        'completionRate': 0.0,
         'numberOfDays': numberOfDays,
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -222,6 +224,7 @@ class FirebaseService {
   }
 
   // SECTION: Entry Retrieval
+
   /// Fetches all habit entries for a specific date range
   /// @param startDate The start date of the range (inclusive)
   /// @param endDate The end date of the range (inclusive)
@@ -684,6 +687,25 @@ class FirebaseService {
     }
   }
 
+  Future<Map<String, double>> getCompletionRateForTopHabits() async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final topHabitsDoc = await _firestore.collection('topHabits').doc(currentUserId).get();
+      if (!topHabitsDoc.exists) return {};
+
+      if (topHabitsDoc.data() == null){
+        print('FirebaseService: No top habits data found for user $currentUserId');
+        return {};
+      }
+
+      return Map<String, double>.from(topHabitsDoc.data()!['topHabits'] ?? {});
+    } catch (e) {
+      print('Error getting completion rate for top habits: $e');
+      throw Exception('Failed to get completion rate for top habits: $e');
+    }
+  }
+
   // sub-section: Completion Rate Updates
 
   /// Updates the completion rates for all timeframes (weekly, monthly, and six-month)
@@ -693,6 +715,7 @@ class FirebaseService {
     await updateMonthlyCompletionRate();
     await updateSixMonthCompletionRate();
     await updateOverallCompletionRate();
+    await updatePerformanceOfHabitsAndTopHabits();
   }
 
   /// Updates the weekly completion rate for the current user
@@ -1005,6 +1028,109 @@ class FirebaseService {
     }
   }
 
+  /// This function performs the following tasks:
+  /// 1. Verifies user authentication
+  /// 2. Calculates completion rates for each habit over the past year
+  /// 3. Updates the completion rate for each habit in Firestore
+  /// 4. Maintains a list of top performing habits
+  /// 5. Updates the 'topHabits' document in Firestore
+  ///
+  /// The function uses batch writes for efficient updates and handles potential errors.
+  ///
+  /// @throws Exception if the user is not authenticated or if any update operation fails.
+  Future<void> updatePerformanceOfHabitsAndTopHabits() async {
+    try {
+      // Verify user authentication
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      // Set up date range for the past year
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfDay = startOfDay.add(Duration(days: 1));
+      final firstDate = startOfDay.subtract(Duration(days: 365));
+
+      // Fetch all habits for the current user
+      final habits = await _habits.where('userId', isEqualTo: currentUserId).get();
+      if (habits.docs.isEmpty) {
+        print('User has no habits');
+        return; // Exit early if user has no habits
+      }
+
+      // Initialize a batch write for efficient updates
+      final batch = _firestore.batch();
+
+      // Fetch all entries for the past year
+      final entries = await getEntriesForDateRange(startDate: firstDate, endDate: endOfDay);
+
+      // Map to store top performing habits
+      Map<String, double> topHabitsCompletionRates = {};
+
+      // Calculate and update completion rate for each habit
+      for (var habit in habits.docs) {
+        int totalEntries = 0;
+        int completedEntries = 0;
+        final entriesForHabit = entries.where((entry) => entry.habitId == habit.id).toList();
+        for (var entry in entriesForHabit) {
+          totalEntries++;
+          if (entry.isCompleted) completedEntries++;
+        }
+        final completionRate = totalEntries > 0 
+          ? completedEntries / totalEntries * 100 
+          : 0.0;
+        final habitData = habit.data() as Map<String, dynamic>;
+        final habitName = habitData['name'];
+        updateTopHabitsMap(habitName, completionRate, topHabitsCompletionRates, 3);
+        // Add update operation to batch
+        batch.update(habit.reference, {
+          'completionRate': completionRate,
+        });
+      }
+
+      // Commit the batch update
+      try {
+        await batch.commit();
+      } catch (e) {
+        print('Error committing batch update for habit completion rates: $e');
+        throw Exception('Failed to update habit completion rates: $e');
+      }
+
+      // Update top habits document
+      try {
+        await _firestore.collection('topHabits').doc(currentUserId).set({
+          'topHabits': topHabitsCompletionRates,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        print('Error updating top habits document: $e');
+        throw Exception('Failed to update top habits document: $e');
+      }
+    } catch (e) {
+      print('Error updating habit performance: $e');
+      throw Exception('Failed to update performance of habits: $e');
+    }
+  }
+
+  /// Maintains a map of the top N performing habits
+  /// @param maxTopHabits The maximum number of top habits to track (e.g., 5)
+  void updateTopHabitsMap(String habitId, double completionRate, 
+      Map<String, double> topHabitsCompletionRates, int maxTopHabits) {
+    
+    // If map has fewer entries than maxTopHabits, add directly
+    if (topHabitsCompletionRates.length < maxTopHabits) {
+      topHabitsCompletionRates[habitId] = completionRate;
+      return;
+    }
+
+    // Find the lowest performing habit in the current top habits
+    var lowestEntry = topHabitsCompletionRates.entries
+        .reduce((a, b) => a.value < b.value ? a : b);
+
+    // If new completion rate is higher than the lowest, replace it
+    if (completionRate > lowestEntry.value) {
+      topHabitsCompletionRates.remove(lowestEntry.key);
+      topHabitsCompletionRates[habitId] = completionRate;
+    }
+  }
 
   // SECTION: User Data Management
   /// Clears all data for the current user

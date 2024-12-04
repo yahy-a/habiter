@@ -344,7 +344,10 @@ class HabitProvider with ChangeNotifier {
     return isCompleted;
   }
 
-
+  /// Gets the completion rates of the top habits for the current user
+  Future<Map<String, double>> getTopHabitsCompletionRates() async {
+    return await _firebaseService.getCompletionRateForTopHabits();
+  }
 
   // SECTION: Streak Management
   Future<int> getOverallBestStreak() async {

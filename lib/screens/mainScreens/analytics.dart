@@ -72,7 +72,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
               )),
               SliverToBoxAdapter(child: _buildHabitStats()),
               SliverToBoxAdapter(child: _buildTopHabits()),
-              SliverToBoxAdapter(child: _buildMonthlyProgress()),
+              // SliverToBoxAdapter(child: _buildMonthlyProgress()),
             ],
           ),
         );
@@ -591,8 +591,8 @@ Widget _buildHabitStats() {
             return Center(child: Text('Error loading stats'));
           }
 
-          final completionRate = snapshot.data?['completionRate'] ?? 0.0;
-          final totalHabits = snapshot.data?['totalHabits'] ?? 0;
+          final double completionRate = snapshot.data?['completionRate'] ?? 0.0;
+          final int totalHabits = snapshot.data?['totalHabits'] ?? 0;
 
           return Container(
             margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -683,49 +683,71 @@ Widget _buildTopHabits() {
   return Consumer<HabitProvider>(
     builder: (context, habitProvider, child) {
       final isDarkMode = Provider.of<PreferencesProvider>(context).isDarkMode;
-      return Container(
-        margin: EdgeInsets.all(16),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDarkMode
-                ? [
-                    Color(0xFF2A2A2A),
-                    Color(0xFF1F1F1F),
-                  ]
-                : [
-                    Colors.white,
-                    Colors.grey[100]!,
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Top Performing Habits',
-              style: GoogleFonts.poppins(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+      return FutureBuilder<Map<String, double>>(
+        future: habitProvider.getTopHabitsCompletionRates(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading top habits'));
+          }
+          if (snapshot.data == null || snapshot.data!.isEmpty) {
+            return Center(child: Text('No top habits found'));
+          }
+          final topHabits = snapshot.data!;
+          return Container(
+            margin: EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: isDarkMode
+                    ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
+                    : [Colors.white, Colors.grey[100]!],
               ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
-            SizedBox(height: 16),
-            _buildTopHabitItem('Morning Meditation', '95%', isDarkMode),
-            _buildTopHabitItem('Daily Exercise', '85%', isDarkMode),
-            _buildTopHabitItem('Reading', '80%', isDarkMode),
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Top Performing Habits',
+                  style: GoogleFonts.poppins(
+                    color: isDarkMode ? Colors.white : Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 16),
+                SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    physics: BouncingScrollPhysics(),
+                    itemCount: topHabits.length,
+                    itemBuilder: (context, index) {
+                      return _buildTopHabitItem(
+                        topHabits.keys.elementAt(index),
+                        topHabits.values.elementAt(index).toStringAsFixed(1),
+                        isDarkMode,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       );
     },
   );
@@ -772,144 +794,144 @@ Widget _buildTopHabitItem(String name, String completion, bool isDarkMode) {
   );
 }
 
-Widget _buildMonthlyProgress() {
-  return Consumer<HabitProvider>(
-    builder: (context, habitProvider, child) {
-      final isDarkMode = Provider.of<PreferencesProvider>(context).isDarkMode;
-      return Container(
-        height: 300,
-        margin: EdgeInsets.all(16),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDarkMode
-                ? [
-                    Color(0xFF2A2A2A),
-                    Color(0xFF1F1F1F),
-                  ]
-                : [
-                    Colors.white,
-                    Colors.grey[100]!,
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Monthly Progress',
-              style: GoogleFonts.poppins(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            SizedBox(height: 20),
-            Expanded(
-              child: BarChart(
-                BarChartData(
-                  gridData: FlGridData(show: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Text(
-                            '${value.toInt()}%',
-                            style: GoogleFonts.poppins(
-                              color:
-                                  isDarkMode ? Colors.white70 : Colors.black54,
-                              fontSize: 12,
-                            ),
-                          );
-                        },
-                        reservedSize: 40,
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          List<String> months = [
-                            'Jan',
-                            'Feb',
-                            'Mar',
-                            'Apr',
-                            'May',
-                            'Jun'
-                          ];
-                          if (value.toInt() < months.length) {
-                            return Text(
-                              months[value.toInt()],
-                              style: GoogleFonts.poppins(
-                                color: isDarkMode
-                                    ? Colors.white70
-                                    : Colors.black54,
-                                fontSize: 12,
-                              ),
-                            );
-                          }
-                          return Text('');
-                        },
-                      ),
-                    ),
-                    rightTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: [
-                    _buildBarGroup(0, 65, isDarkMode),
-                    _buildBarGroup(1, 75, isDarkMode),
-                    _buildBarGroup(2, 85, isDarkMode),
-                    _buildBarGroup(3, 80, isDarkMode),
-                    _buildBarGroup(4, 90, isDarkMode),
-                    _buildBarGroup(5, 85, isDarkMode),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-BarChartGroupData _buildBarGroup(int x, double y, bool isDarkMode) {
-  return BarChartGroupData(
-    x: x,
-    barRods: [
-      BarChartRodData(
-        toY: y,
-        color: isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,
-        width: 16,
-        borderRadius: BorderRadius.circular(4),
-        backDrawRodData: BackgroundBarChartRodData(
-          show: true,
-          toY: 100,
-          color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.05),
-        ),
-      ),
-    ],
-  );
-}
+// Widget _buildMonthlyProgress() {
+//   return Consumer<HabitProvider>(
+//     builder: (context, habitProvider, child) {
+//       final isDarkMode = Provider.of<PreferencesProvider>(context).isDarkMode;
+//       return Container(
+//         height: 300,
+//         margin: EdgeInsets.all(16),
+//         padding: EdgeInsets.all(16),
+//         decoration: BoxDecoration(
+//           gradient: LinearGradient(
+//             begin: Alignment.topLeft,
+//             end: Alignment.bottomRight,
+//             colors: isDarkMode
+//                 ? [
+//                     Color(0xFF2A2A2A),
+//                     Color(0xFF1F1F1F),
+//                   ]
+//                 : [
+//                     Colors.white,
+//                     Colors.grey[100]!,
+//                   ],
+//           ),
+//           borderRadius: BorderRadius.circular(16),
+//           boxShadow: [
+//             BoxShadow(
+//               color: Colors.black26,
+//               blurRadius: 10,
+//               offset: Offset(0, 4),
+//             ),
+//           ],
+//         ),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Text(
+//               'Monthly Progress',
+//               style: GoogleFonts.poppins(
+//                 color: isDarkMode ? Colors.white : Colors.black,
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//               ),
+//             ),
+//             SizedBox(height: 20),
+//             Expanded(
+//               child: BarChart(
+//                 BarChartData(
+//                   gridData: FlGridData(show: false),
+//                   titlesData: FlTitlesData(
+//                     leftTitles: AxisTitles(
+//                       sideTitles: SideTitles(
+//                         showTitles: true,
+//                         getTitlesWidget: (value, meta) {
+//                           return Text(
+//                             '${value.toInt()}%',
+//                             style: GoogleFonts.poppins(
+//                               color:
+//                                   isDarkMode ? Colors.white70 : Colors.black54,
+//                               fontSize: 12,
+//                             ),
+//                           );
+//                         },
+//                         reservedSize: 40,
+//                       ),
+//                     ),
+//                     bottomTitles: AxisTitles(
+//                       sideTitles: SideTitles(
+//                         showTitles: true,
+//                         getTitlesWidget: (value, meta) {
+//                           List<String> months = [
+//                             'Jan',
+//                             'Feb',
+//                             'Mar',
+//                             'Apr',
+//                             'May',
+//                             'Jun'
+//                           ];
+//                           if (value.toInt() < months.length) {
+//                             return Text(
+//                               months[value.toInt()],
+//                               style: GoogleFonts.poppins(
+//                                 color: isDarkMode
+//                                     ? Colors.white70
+//                                     : Colors.black54,
+//                                 fontSize: 12,
+//                               ),
+//                             );
+//                           }
+//                           return Text('');
+//                         },
+//                       ),
+//                     ),
+//                     rightTitles: AxisTitles(
+//                       sideTitles: SideTitles(showTitles: false),
+//                     ),
+//                     topTitles: AxisTitles(
+//                       sideTitles: SideTitles(showTitles: false),
+//                     ),
+//                   ),
+//                   borderData: FlBorderData(show: false),
+//                   barGroups: [
+//                     _buildBarGroup(0, 65, isDarkMode),
+//                     _buildBarGroup(1, 75, isDarkMode),
+//                     _buildBarGroup(2, 85, isDarkMode),
+//                     _buildBarGroup(3, 80, isDarkMode),
+//                     _buildBarGroup(4, 90, isDarkMode),
+//                     _buildBarGroup(5, 85, isDarkMode),
+//                   ],
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ),
+//       );
+//     },
+//   );
+// }
 
 
-// left
+// BarChartGroupData _buildBarGroup(int x, double y, bool isDarkMode) {
+//   return BarChartGroupData(
+//     x: x,
+//     barRods: [
+//       BarChartRodData(
+//         toY: y,
+//         color: isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,
+//         width: 16,
+//         borderRadius: BorderRadius.circular(4),
+//         backDrawRodData: BackgroundBarChartRodData(
+//           show: true,
+//           toY: 100,
+//           color: (isDarkMode ? Colors.white : Colors.black).withOpacity(0.05),
+//         ),
+//       ),
+//     ],
+//   );
+// }
 
-// bottom
+
+
+
 

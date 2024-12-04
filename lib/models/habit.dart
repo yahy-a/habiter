@@ -11,6 +11,7 @@ class Habit {
   final int? bestStreak;  // Best streak for the habit
   final int? currentStreak;  // Current streak for the habit
   final DateTime createdAt;  // When the habit was created
+  final double? completionRate;  // Completion rate for the habit
   final Map<String, HabitEntry> entries;  // Map of habit entries, keyed by some identifier (possibly date)
   
 
@@ -24,6 +25,7 @@ class Habit {
     required this.numberOfDays,
     this.bestStreak,
     this.currentStreak,
+    this.completionRate,
     DateTime? createdAt,
       Map<String, HabitEntry>? entries,
   })  : createdAt = createdAt ?? DateTime.now(),  // Use provided date or current date
@@ -38,7 +40,8 @@ class Habit {
       'frequency': frequency,
       'numberOfDays': numberOfDays,
       'bestStreak': bestStreak,
-      'currentStreak': currentStreak,
+      'currentStreak': currentStreak, 
+      'completionRate': completionRate,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
@@ -56,6 +59,7 @@ class Habit {
       numberOfDays: data['numberOfDays'] ?? 0,
       bestStreak: data['bestStreak'],
       currentStreak: data['currentStreak'],
+      completionRate: data['completionRate'],
       createdAt: data['createdAt'] != null 
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
@@ -75,6 +79,7 @@ class Habit {
       numberOfDays: numberOfDays,
       bestStreak: bestStreak,
       currentStreak: currentStreak,
+      completionRate: completionRate,
       createdAt: createdAt,
       entries: newEntries,
     );
