@@ -4,7 +4,6 @@ import 'package:habiter_/providers/habit_provider.dart';
 import 'package:habiter_/providers/notification_service.dart';
 import 'package:habiter_/providers/preferences_service.dart';
 import 'package:habiter_/screens/starting/splash.dart';
-import 'package:path/path.dart';
 import 'package:provider/provider.dart';
 
 void main() async{

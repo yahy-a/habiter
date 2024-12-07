@@ -731,7 +731,7 @@ Widget _buildTopHabits() {
                 SizedBox(height: 16),
                 SizedBox(
                   height: 200,
-                  child: ListView.builder(
+                  child: topHabits.isEmpty ? Center(child: Text('No top habits found')) : ListView.builder(
                     shrinkWrap: true,
                     physics: BouncingScrollPhysics(),
                     itemCount: topHabits.length,
@@ -780,7 +780,7 @@ Widget _buildTopHabitItem(String name, String completion, bool isDarkMode) {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            completion,
+            '$completion%',
             style: GoogleFonts.poppins(
               color:
                   isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,

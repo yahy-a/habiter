@@ -196,6 +196,7 @@ class HabitProvider with ChangeNotifier {
     }
     await _firebaseService.updateOverAllStreak();
     await _firebaseService.updateOverallBestStreak();
+    // await _firebaseService.updateAllHabitStreaks();
   }
 
   /// Retrieves completion status for a specific habit
@@ -238,6 +239,11 @@ class HabitProvider with ChangeNotifier {
     });
   }
 
+  /// Provides a stream of all habits for the current user
+  Stream<List<Habit>> get allHabitsStream {
+    return _firebaseService.getHabitsStream();
+  }
+
   /// Creates a new habit with current form data
   Future<void> addHabit() async {
     try {
@@ -272,6 +278,7 @@ class HabitProvider with ChangeNotifier {
     await _firebaseService.deleteHabit(habitId);
     await _firebaseService.updateOverAllStreak();
     await _firebaseService.updateOverallBestStreak();
+    await _firebaseService.updateAllCompletionRate();
     notifyListeners();
   }
 
@@ -296,6 +303,7 @@ class HabitProvider with ChangeNotifier {
         await _firebaseService.updateHabitCompletion(
             habitId, _selectedDate, isCompleted);
         await _firebaseService.updateHabitStreak(habitId);
+        await _firebaseService.updateHabitBestStreak(habitId);
         notifyListeners();
         await _firebaseService.updateOverAllStreak();
         await _firebaseService.updateOverallBestStreak();

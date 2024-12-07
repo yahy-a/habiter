@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:habiter_/models/habit.dart';
+import 'package:habiter_/providers/habit_provider.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:habiter_/providers/preferences_service.dart';
 
@@ -23,10 +26,8 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             slivers: [
               SliverToBoxAdapter(child: _buildProfileHeader(isDarkMode)),
-              SliverToBoxAdapter(child: _buildStats(isDarkMode)),
-              SliverToBoxAdapter(child: _buildPreferences(isDarkMode)),
-              SliverToBoxAdapter(child: _buildAccountSettings(isDarkMode)),
-              SliverToBoxAdapter(child: _buildAbout(isDarkMode)),
+              SliverToBoxAdapter(child: _buildHabitsHeader()),
+              SliverToBoxAdapter(child: _buildHabitsList()),
             ],
           ),
         );
@@ -110,376 +111,344 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildStats(bool isDarkMode) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          _buildStatCard(
-            'Streak',
-            '15 days',
-            Icons.local_fire_department_rounded,
-            isDarkMode,
-          ),
-          SizedBox(width: 12),
-          _buildStatCard(
-            'Total Habits',
-            '12',
-            Icons.list_alt_rounded,
-            isDarkMode,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      String title, String value, IconData icon, bool isDarkMode) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDarkMode
-                ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
-                : [Colors.white, Colors.grey[100]!],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 6,
-              offset: Offset(0, 2),
+  Widget _buildHabitsHeader() {
+    return Consumer<PreferencesProvider>(
+      builder: (context, prefsProvider, child) {
+        final isDarkMode = prefsProvider.isDarkMode;
+        return Container(
+          margin: EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDarkMode
+                  ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
+                  : [Colors.white, Colors.grey[100]!],
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              icon,
-              color: isDarkMode
-                  ? Color.fromARGB(255, 187, 134, 252)
-                  : Colors.blue,
-              size: 24,
-            ),
-            SizedBox(height: 12),
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-            ),
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                color: isDarkMode ? Colors.white70 : Colors.black54,
-                fontSize: 14,
+            ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.list_rounded,
+                color: isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,
+                size: 30,
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPreferences(bool isDarkMode) {
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDarkMode
-              ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
-              : [Colors.white, Colors.grey[100]!],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Preferences',
-            style: GoogleFonts.poppins(
-              color: isDarkMode ? Colors.white : Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 16),
-          _buildPreferenceItem(
-            'Dark Mode',
-            Icons.dark_mode_rounded,
-            isDarkMode,
-            Switch(
-              value: isDarkMode,
-              onChanged: (value) =>
-                  Provider.of<PreferencesProvider>(context, listen: false)
-                      .setThemeMode(value),
-              activeColor: Color.fromARGB(255, 187, 134, 252),
-            ),
-          ),
-          _buildPreferenceItem(
-            'Notifications',
-            Icons.notifications_rounded,
-            isDarkMode,
-            Switch(
-              value: true,
-              onChanged: (value) {},
-              activeColor: Color.fromARGB(255, 187, 134, 252),
-            ),
-          ),
-          _buildPreferenceItem(
-            'Sound Effects',
-            Icons.volume_up_rounded,
-            isDarkMode,
-            Switch(
-              value: false,
-              onChanged: (value) {},
-              activeColor: Color.fromARGB(255, 187, 134, 252),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAccountSettings(bool isDarkMode) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDarkMode
-              ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
-              : [Colors.white, Colors.grey[100]!],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Account Settings',
-            style: GoogleFonts.poppins(
-              color: isDarkMode ? Colors.white : Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 16),
-          _buildSettingsButton(
-            'Edit Profile',
-            Icons.edit_rounded,
-            isDarkMode,
-            () {},
-          ),
-          _buildSettingsButton(
-            'Change Password',
-            Icons.lock_rounded,
-            isDarkMode,
-            () {},
-          ),
-          _buildSettingsButton(
-            'Privacy Settings',
-            Icons.security_rounded,
-            isDarkMode,
-            () {},
-          ),
-          _buildSettingsButton(
-            'Export Data',
-            Icons.download_rounded,
-            isDarkMode,
-            () {},
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAbout(bool isDarkMode) {
-    return Container(
-      margin: EdgeInsets.all(16),
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDarkMode
-              ? [Color(0xFF2A2A2A), Color(0xFF1F1F1F)]
-              : [Colors.white, Colors.grey[100]!],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'About',
-            style: GoogleFonts.poppins(
-              color: isDarkMode ? Colors.white : Colors.black,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          SizedBox(height: 16),
-          _buildAboutItem('Version', '1.0.0', isDarkMode),
-          _buildAboutItem('Terms of Service', 'View', isDarkMode),
-          _buildAboutItem('Privacy Policy', 'View', isDarkMode),
-          _buildAboutItem('Help & Support', 'Contact Us', isDarkMode),
-          SizedBox(height: 16),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              child: Text(
-                'Sign Out',
+              SizedBox(width: 12),
+              Text(
+                'Your Habits',
                 style: GoogleFonts.poppins(
-                  color: Colors.red,
-                  fontSize: 16,
+                  color: isDarkMode ? Colors.white : Colors.black,
+                  fontSize: 24,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      }
     );
   }
 
-  Widget _buildPreferenceItem(
-      String title, IconData icon, bool isDarkMode, Widget trailing) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: (isDarkMode
-                      ? Color.fromARGB(255, 187, 134, 252)
-                      : Colors.blue)
-                  .withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color:
-                  isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,
-              size: 24,
-            ),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              title,
-              style: GoogleFonts.poppins(
-                color: isDarkMode ? Colors.white : Colors.black,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          trailing,
-        ],
-      ),
+  Widget _buildHabitsList() {
+    return Consumer<HabitProvider>(
+      builder: (context, habitProvider, child) {
+        return StreamBuilder<List<Habit>>(
+          stream: habitProvider.allHabitsStream,
+          builder: (context, snapshot) {
+            // if (snapshot.connectionState == ConnectionState.waiting) {
+            //   return Center(
+            //     child: CircularProgressIndicator(
+            //       valueColor: AlwaysStoppedAnimation<Color>(
+            //         Provider.of<PreferencesProvider>(context).isDarkMode 
+            //           ? Color.fromARGB(255, 187, 134, 252)
+            //           : Colors.blue
+            //       ),
+            //       backgroundColor: Provider.of<PreferencesProvider>(context).isDarkMode
+            //           ? Colors.white24
+            //           : Colors.grey[200],
+            //     ),
+            //   );
+            // }
+            
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'Error loading habits',
+                  style: GoogleFonts.poppins(
+                    color: Provider.of<PreferencesProvider>(context).isDarkMode 
+                      ? Colors.white70 
+                      : Colors.black54,
+                    fontSize: 16,
+                  ),
+                ),
+              );
+            }
+
+            final habits = snapshot.data ?? [];
+            
+            if (habits.isEmpty) {
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.sentiment_dissatisfied_rounded,
+                      size: 48,
+                      color: Provider.of<PreferencesProvider>(context).isDarkMode 
+                        ? Colors.white70 
+                        : Colors.black54,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No habits yet',
+                      style: GoogleFonts.poppins(
+                        color: Provider.of<PreferencesProvider>(context).isDarkMode 
+                          ? Colors.white70 
+                          : Colors.black54,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create a new habit to get started',
+                      style: GoogleFonts.poppins(
+                        color: Provider.of<PreferencesProvider>(context).isDarkMode 
+                          ? Colors.white54 
+                          : Colors.black38,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              itemCount: habits.length,
+              itemBuilder: (context, index) {
+                return AnimatedOpacity(
+                  duration: Duration(milliseconds: 300),
+                  opacity: 1.0,
+                  child: _buildHabitItem(habits[index]),
+                );
+              },
+            );
+          }
+        );
+      }
     );
   }
 
-  Widget _buildSettingsButton(
-      String title, IconData icon, bool isDarkMode, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: 16),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (isDarkMode
-                        ? Color.fromARGB(255, 187, 134, 252)
-                        : Colors.blue)
-                    .withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                color: isDarkMode
-                    ? Color.fromARGB(255, 187, 134, 252)
-                    : Colors.blue,
-                size: 24,
-              ),
+  Widget _buildHabitItem(Habit habit) {
+    return Consumer<PreferencesProvider>(
+      builder: (context, prefsProvider, child) {
+        final isDarkMode = prefsProvider.isDarkMode;
+        return Container(
+          margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDarkMode
+                  ? [Color(0xFF1A1A1A), Color(0xFF2D2D2D)]
+                  : [Colors.white, Color(0xFFF5F5F5)],
             ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: isDarkMode ? Colors.black38 : Colors.black12,
+                blurRadius: 12,
+                offset: Offset(0, 4),
+                spreadRadius: 2,
+              ),
+            ],
+            border: Border.all(
+              color: isDarkMode ? Colors.white12 : Colors.black.withOpacity(0.05),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      habit.name,
+                      style: GoogleFonts.poppins(
+                        color: isDarkMode ? Colors.white : Colors.black87,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: (isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue)
+                          .withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: (isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue)
+                            .withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      '${habit.completionRate?.toStringAsFixed(1) ?? '0.0'}%',
+                      style: GoogleFonts.poppins(
+                        color: isDarkMode ? Color.fromARGB(255, 187, 134, 252) : Colors.blue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Created on ${DateFormat('MMM d, yyyy').format(habit.createdAt)}',
                 style: GoogleFonts.poppins(
-                  color: isDarkMode ? Colors.white : Colors.black,
-                  fontSize: 16,
+                  color: isDarkMode ? Colors.white38 : Colors.black38,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: isDarkMode ? Colors.white54 : Colors.black54,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAboutItem(String title, String value, bool isDarkMode) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              color: isDarkMode ? Colors.white : Colors.black,
-              fontSize: 16,
-            ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isDarkMode ? Colors.black12 : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  habit.detail,
+                  style: GoogleFonts.poppins(
+                    color: isDarkMode ? Colors.white70 : Colors.black54,
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: isDarkMode ? Colors.white.withOpacity(0.05) : Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDarkMode ? Colors.white12 : Colors.black.withOpacity(0.05),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            color: isDarkMode ? Colors.white60 : Colors.black54,
+                            size: 16,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            habit.frequency.toUpperCase(),
+                            style: GoogleFonts.poppins(
+                              color: isDarkMode ? Colors.white70 : Colors.black54,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department,
+                            color: Colors.orange.shade400,
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Current: ${habit.currentStreak}',
+                            style: GoogleFonts.poppins(
+                              color: isDarkMode ? Colors.white70 : Colors.black54,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Container(
+                      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.emoji_events,
+                            color: Colors.amber,
+                            size: 18,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Best: ${habit.bestStreak}',
+                            style: GoogleFonts.poppins(
+                              color: isDarkMode ? Colors.white70 : Colors.black54,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              color: isDarkMode ? Colors.white54 : Colors.black54,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+        );
+      }
     );
   }
 }

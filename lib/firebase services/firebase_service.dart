@@ -223,6 +223,42 @@ class FirebaseService {
     });
   }
 
+  /// Provides a stream of all habits for the current user
+  /// @throws Exception if user is not authenticated
+  /// @return Stream of habits without their entries
+  Stream<List<Habit>> getHabitsStream() {
+    if (currentUserId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    return _habits
+        .where('userId', isEqualTo: currentUserId)
+        .snapshots()
+        .asyncMap((habitSnapshot) async {
+      try {
+        final habits = habitSnapshot.docs.map((doc) {
+          try {
+            return Habit.fromDocument(doc);
+          } catch (e) {
+            print('Error parsing habit document ${doc.id}: $e');
+            return null;
+          }
+        })
+        .whereType<Habit>() // Filter out null values
+        .toList();
+
+        return habits;
+      } catch (e) {
+        print('Error processing habits snapshot: $e');
+        return <Habit>[];
+      }
+    })
+    .handleError((error) {
+      print('Error in habits stream: $error');
+      return <Habit>[];
+    });
+  }
+
   // SECTION: Entry Retrieval
 
   /// Fetches all habit entries for a specific date range
@@ -299,6 +335,7 @@ class FirebaseService {
     }
   }
 
+
   // SECTION: Streak Management
   /// Retrieves the current streak for a specific habit
   /// @param habitId ID of the habit
@@ -337,6 +374,72 @@ class FirebaseService {
       await _habits.doc(habitId).update({'currentStreak': streak});
     } catch (e) {
       print('Error fetching habit streak: $e');
+    }
+  }
+
+
+  /// Updates the current streak count for all habits belonging to the current user
+  /// 
+  /// This function performs the following steps:
+  /// 1. Verifies user authentication
+  /// 2. Retrieves all habits for the current user
+  /// 3. Gets all habit entries ordered by most recent
+  /// 4. For each habit:
+  ///    - Counts consecutive completed entries to calculate streak
+  ///    - Stops counting at first incomplete entry
+  /// 5. Uses batch update to efficiently update all habit streaks at once
+  ///
+  /// The streak calculation looks at entries in reverse chronological order,
+  /// incrementing the streak counter for each completed entry until finding
+  /// an incomplete one.
+  ///
+  /// @throws Exception if user is not authenticated or if batch update fails
+  Future<void> updateAllHabitStreaks() async {
+    try {
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final habits = await _habits.where('userId', isEqualTo: currentUserId).get();
+      if (habits.docs.isEmpty) {
+        print('No habits found for user');
+        return;
+      }
+
+      final entriesList = await _firestore
+          .collectionGroup('entries')
+          .where('userId', isEqualTo: currentUserId)
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(DateTime.now()))
+          .orderBy('date', descending: true)
+          .get();
+
+      final batch = _firestore.batch();
+      for (var habit in habits.docs) {
+        int streak = 0;
+        for (var entry in entriesList.docs) {
+          final entryData = entry.data();
+          if (entryData['habitId'] == habit.id) {
+            if (entryData['isCompleted'] == true) {
+              streak++;
+            } else {
+              break;
+            }
+          }
+        }
+        batch.update(_habits.doc(habit.id), {'currentStreak': streak});
+      }
+
+      try {
+        await batch.commit();
+        print('Successfully updated all habit streaks');
+      } catch (e) {
+        print('Error committing batch update: $e');
+        throw Exception('Failed to commit batch update: $e');
+      }
+
+    } catch (e) {
+      print('Error updating all habit streaks: $e');
+      throw Exception('Failed to update all habit streaks: $e');
     }
   }
 
@@ -490,15 +593,7 @@ class FirebaseService {
       }
 
       final habitData = habitDoc.data() as Map<String, dynamic>;
-      final storedBestStreak = habitData['bestStreak'] ?? 0;
-      final currentStreak = await getHabitStreak(habitId);
-
-      if (currentStreak > storedBestStreak) {
-        await updateHabitBestStreak(habitId, currentStreak);
-        return currentStreak;
-      }
-
-      return storedBestStreak;
+      return habitData['bestStreak'] ?? 0;
     } catch (e) {
       print('Error getting habit best streak: $e');
       return 0;
@@ -506,12 +601,25 @@ class FirebaseService {
   }
 
   /// Updates the best streak for a specific habit
-  Future<void> updateHabitBestStreak(String habitId, int bestStreak) async {
+  Future<void> updateHabitBestStreak(String habitId) async {
     try {
-      await _habits.doc(habitId).update({'bestStreak': bestStreak});
+      if (currentUserId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      if (habitId.isEmpty) {
+        throw ArgumentError('Habit ID cannot be empty');
+      }
+
+      final currentStreak = await getHabitStreak(habitId);
+      final currentBestStreak = await getHabitBestStreak(habitId);
+
+      if (currentStreak > currentBestStreak) {
+        await _habits.doc(habitId).update({'bestStreak': currentStreak});
+      }
     } catch (e) {
       print('Error updating habit best streak: $e');
-      rethrow;
+      throw Exception('Failed to update habit best streak: $e');
     }
   }
 
@@ -1053,6 +1161,10 @@ class FirebaseService {
       final habits = await _habits.where('userId', isEqualTo: currentUserId).get();
       if (habits.docs.isEmpty) {
         print('User has no habits');
+        await _firestore.collection('topHabits').doc(currentUserId).set({
+          'topHabits': {},
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
         return; // Exit early if user has no habits
       }
 
@@ -1086,6 +1198,11 @@ class FirebaseService {
         });
       }
 
+      final topHabitsCompletionRatesList = topHabitsCompletionRates.entries.toList();
+      topHabitsCompletionRatesList.sort((a, b) => a.value.compareTo(b.value));
+      topHabitsCompletionRates.clear();
+      topHabitsCompletionRates.addEntries(topHabitsCompletionRatesList);
+      
       // Commit the batch update
       try {
         await batch.commit();
